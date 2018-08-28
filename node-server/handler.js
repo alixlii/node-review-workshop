@@ -1,6 +1,6 @@
-const url = require('url');
-const fs = require('fs');
-const path = require('path');
+const url = require("url");
+const fs = require("fs");
+const path = require("path");
 
 const list = {
   Todos: []
@@ -12,11 +12,11 @@ const sendResponse = (res, data, statusCode) => {
 };
 
 const parseData = (req, cb) => {
-  let data = '';
-  req.on('data', chunk => {
+  let data = "";
+  req.on("data", chunk => {
     data += chunk;
   });
-  req.on('end', () => {
+  req.on("end", () => {
     cb(JSON.parse(data));
   });
 };
@@ -25,13 +25,13 @@ const routes = {
   static: {
     GET: (req, res) => {
       let pathname = url.parse(req.url).pathname;
-      console.log('Pathname check', pathname);
-      if (pathname !== '/bundle.js') {
-        pathname = '/index.html';
+      console.log("Pathname check", pathname);
+      if (pathname !== "/bundle.js") {
+        pathname = "/index.html";
       }
       fs.readFile(
         path.join(__dirname, `../static${pathname}`),
-        'utf8',
+        "utf8",
         (err, data) => {
           if (err) {
             console.log(err);
@@ -41,15 +41,31 @@ const routes = {
       );
     }
   },
-  '/api/todoList': {
+  "/api/todoList": {
     GET: (req, res) => {
-      console.log('In GET');
+      console.log("In GET");
+      const query = url.parse(req.url, true).query;
+      const {listName} = query;
+      if (listName in list) {
+        sendResponse(res, list[listName], 200);
+      } else {
+        sendResponse(res, "List not found", 400);
+      }
     },
     POST: (req, res) => {
-      console.log('In POST');
+      console.log("In POST");
+      parseData(req, data => {
+        const {todo, listName} = data;
+        list[listName].push(todo);
+        sendResponse(res, list[listName], 201);
+      });
     },
     DELETE: (req, res) => {
-      console.log('In DELETE');
+      console.log("In DELETE");
+      const query = url.parse(req.url, true).query;
+      const {index, listName} = query;
+      list[listName].splice(index, 1);
+      sendResponse(res, list[listName], 202);
     }
   }
 };
@@ -57,13 +73,13 @@ const routes = {
 module.exports = (req, res) => {
   let pathname = url.parse(req.url).pathname;
   console.log(`Serving request type ${req.method} to ${pathname}`);
-  if (pathname !== '/api/todoList') {
-    pathname = 'static';
+  if (pathname !== "/api/todoList") {
+    pathname = "static";
   }
   const handler = routes[pathname][req.method];
   if (handler) {
     handler(req, res);
   } else {
-    sendResponse(req, 'Page not found!', 404);
+    sendResponse(req, "Page not found!", 404);
   }
 };
